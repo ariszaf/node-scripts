@@ -1,0 +1,57 @@
+name: uptime
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore state
+        uses: actions/cache/restore@v4
+        with:
+          path: state.json
+          key: uptime-state-${{ github.run_id }}
+          restore-keys: uptime-state-
+
+      - name: Probe
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          SITES_JSON: ${{ secrets.SITES_JSON }}
+        run: node check.mjs
+
+      - name: Save state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: state.json
+          key: uptime-state-${{ github.run_id }}
+
+      - name: Keepalive
+        if: github.event_name == 'schedule'
+        run: |
+          set -euo pipefail
+          days=$(( ( $(date -u +%s) - $(git log -1 --format=%ct) ) / 86400 ))
+          if [ "$days" -lt 45 ]; then
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p .github
+          date -u +%Y-%m-%dT%H:%M:%SZ > .github/keepalive
+          git add .github/keepalive
+          git commit -m "chore: keepalive"
+          git push

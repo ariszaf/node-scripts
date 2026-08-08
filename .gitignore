@@ -1,0 +1,4 @@
+# Client data. The registry names who you host — it lives in a GitHub secret
+# and on your machine, never in this repository.
+sites.json
+state.json
