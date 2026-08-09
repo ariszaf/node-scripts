@@ -31,6 +31,7 @@ jobs:
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           SITES_JSON: ${{ secrets.SITES_JSON }}
+          VERBOSE: '1'
         run: node check.mjs
 
       - name: Save state
