@@ -1,6 +1,10 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import net from 'node:net';
+
+net.setDefaultAutoSelectFamily?.(true);
+net.setDefaultAutoSelectFamilyAttemptTimeout?.(500);
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
