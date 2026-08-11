@@ -1,0 +1,40 @@
+name: diag
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sample
+        env:
+          SITES_JSON: ${{ secrets.SITES_JSON }}
+        run: |
+          node -e '
+          import("node:net").then(async ({ default: net }) => {
+            net.setDefaultAutoSelectFamily?.(true);
+            net.setDefaultAutoSelectFamilyAttemptTimeout?.(500);
+            const sites = JSON.parse(process.env.SITES_JSON);
+            console.log("node", process.version);
+            for (let s = 0; s < sites.length; s++) {
+              const site = sites[s];
+              for (let i = 1; i <= 8; i++) {
+                const t0 = Date.now();
+                try {
+                  const r = await fetch(site.url, { redirect: "follow",
+                    signal: AbortSignal.timeout(20000),
+                    headers: { "user-agent": "uptime-check/1.0" } });
+                  const b = await r.text();
+                  console.log(`site${s} #${i} ${r.status} ${Date.now()-t0}ms ${(b.length/1024|0)}KB assert=${site.assert ? b.includes(site.assert) : "n/a"} srv=${r.headers.get("server")} cf=${r.headers.get("cf-ray")?"y":"n"}`);
+                } catch (e) {
+                  console.log(`site${s} #${i} ERR ${Date.now()-t0}ms ${e?.cause?.code || e.message}`);
+                }
+                await new Promise(r => setTimeout(r, 2000));
+              }
+            }
+          });
+          '
