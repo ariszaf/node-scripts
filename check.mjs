@@ -2,9 +2,11 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import net from 'node:net';
+import dns from 'node:dns';
 
 net.setDefaultAutoSelectFamily?.(true);
 net.setDefaultAutoSelectFamilyAttemptTimeout?.(500);
+dns.setDefaultResultOrder?.('ipv4first');
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -33,6 +35,7 @@ process.on('unhandledRejection', onFatal);
 process.on('uncaughtException', onFatal);
 
 const FAIL_THRESHOLD = 2;
+const NET_FAIL_THRESHOLD = 4;
 const RENOTIFY_HOURS = 4;
 const STORM_THRESHOLD = 5;
 const MAX_BODY_BYTES = 3800;
@@ -192,7 +195,8 @@ for (const [site, result] of results) {
   }
 
   const fails = prev.fails + 1;
-  const isDown = fails >= FAIL_THRESHOLD;
+  const threshold = result.status === 0 ? NET_FAIL_THRESHOLD : FAIL_THRESHOLD;
+  const isDown = fails >= threshold;
   const downSince = prev.downSince || (isDown ? now : null);
 
   if (isDown) {
